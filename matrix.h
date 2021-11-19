@@ -70,10 +70,17 @@ public:
     Matrix<ElementTy> boardcastBinaryOperator(Matrix<ElementTy>& another, const std::function<ElementTy (ElementTy, ElementTy)>& op_handler);
     // get a row
     RowView<ElementTy> getRow(int row);
+    // get a row
+    RowView<ElementTy> operator[] (int row);
     // get a column
     ColumnView<ElementTy> getColumn(int col);
+    // get raw data in memory
+    virtual ElementTy* rawData() { return data.get(); }
 
     virtual ~MatrixBase() = default;
+
+private:
+    ElementTy* getRawData(int row, int col) { return (data.get() + (row * numCol) + col); }
 };
 
 template <class ElementTy=float>
@@ -108,6 +115,8 @@ public:
     identity(int size, ElementTy value=1);
     // get a row
     MutableRowView<ElementTy> getMutableRow(int row);
+    // get a row
+    MutableRowView<ElementTy> operator[] (int row) { return std::move(getMutableRow(row)); }
     // get a column
     MutableColumnView<ElementTy> getMutableColumn(int col);
 
@@ -171,6 +180,7 @@ public:
     RowView(MatrixBase<ElementTy> matrix, int row): VectorView<ElementTy>(matrix), row(row) { }
 
     ElementTy get(int col) override { return MatrixBase<ElementTy>::get(row, col); }
+    ElementTy operator[] (int col) { return get(col); }
     int getColumnCount() override { return MatrixBase<ElementTy>::getColumnCount(); }
     int getRowCount() override { return 1; }
 };
@@ -185,9 +195,13 @@ public:
     MutableRowView(MatrixBase<ElementTy> matrix, int row): MutableVectorView<ElementTy>(matrix), row(row) { }
 
     ElementTy get(int col) override { return MatrixBase<ElementTy>::get(row, col); }
+    ElementTy& operator[] (int col) { return *(MatrixBase<ElementTy>::data.get() + (row * MatrixBase<ElementTy>::numCol) + col); };
+
     void set(int index, ElementTy value) override { MutableVectorView<ElementTy>::set_elem(row, index, value); }
     int getColumnCount() override { return MatrixBase<ElementTy>::getColumnCount(); }
     int getRowCount() override { return 1; }
+
+    MutableRowView<ElementTy>& operator=(MutableRowView<ElementTy>& another);
 };
 
 template <class ElementTy=float>
@@ -211,7 +225,7 @@ private:
 public:
     int col;
     MutableColumnView(MatrixBase<ElementTy> matrix, int col): MutableVectorView<ElementTy>(matrix), col(col) { }
-    void set(int index, ElementTy value) override { MutableVectorView<ElementTy>::set_elem(col, index, value); }
+    void set(int index, ElementTy value) override { MutableVectorView<ElementTy>::set_elem(index, col, value); }
     ElementTy get(int row) { return MatrixBase<ElementTy>::get(row, col); }
     int getColumnCount() override { return 1; }
     int getRowCount() override { return MatrixBase<ElementTy>::getRowCount(); }
@@ -231,6 +245,18 @@ typedef RowView<> row_view_t;
 typedef MutableRowView<> mutable_row_view_t;
 
 ///////////////////////////////////////////////////////////////////////////
+
+template<class ElementTy>
+MutableRowView<ElementTy> &MutableRowView<ElementTy>::operator=(MutableRowView<ElementTy> &another) {
+    if (this->getColumnCount() != another.getColumnCount())
+        throw LogicalException("Column count is not identical");
+    int ncol = getColumnCount();
+    for (int i=0; i<ncol; i++) {
+        this->set(i, another.get(i));
+    }
+    return *this;
+}
+
 
 template<class ElementTy>
 MatrixReshapeView<ElementTy>::MatrixReshapeView(MatrixBase<ElementTy> matrix, int new_row, int new_column) : MatrixBase<ElementTy>(matrix) {
@@ -357,6 +383,11 @@ RowView<ElementTy> MatrixBase<ElementTy>::getRow(int row) {
 template<class ElementTy>
 ColumnView<ElementTy> MatrixBase<ElementTy>::getColumn(int col) {
     return ColumnView<ElementTy>(*this, col);
+}
+
+template<class ElementTy>
+RowView<ElementTy> MatrixBase<ElementTy>::operator[](int row) {
+    return std::move(getRow(row));
 }
 
 template<class ElementTy>
