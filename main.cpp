@@ -9,7 +9,7 @@ int main() {
         matrix_t m2 = {{1, 4, 6, 7}};
         m1 = m1.transpose();
         matrix_t m3 = m1 + m2;
-        m3.print();
+        m3.print("\t");
         cout << endl;
         row_view_t r33 = m3.getRow(1);
         column_view_t c33 = m3.getColumn(1);
@@ -18,7 +18,9 @@ int main() {
         m3[2][2] = 322;
         auto t = m3[2];
         t[3] = 555;
-        m3.print();
+        m3.upperTriangle().print("\t");
+        m3.lowerTriangle().print("\t");
+        m3.diagonal().print("\t");
         //MatrixReshapeView<float>(m1, 2, 2).print();
         return 0;
     }

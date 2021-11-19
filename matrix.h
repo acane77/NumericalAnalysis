@@ -33,6 +33,10 @@ protected:
 
     ElementTy max(ElementTy a, ElementTy b) const { return a > b ? a : b; }
     ElementTy min(ElementTy a, ElementTy b) const { return a < b ? a : b; }
+    // set value of an element
+    void _set_elem(int row, int col, ElementTy value) { *(data.get() + (row * numCol) + col) = value; }
+    ElementTy _get_elem(int row, int col) { return *(data.get() + (row * numCol) + col); };
+    ElementTy& _get_elem_ref(int row, int col) { return *(data.get() + (row * numCol) + col); };
 
 public:
     MatrixBase(const MatrixBase& another);
@@ -76,6 +80,12 @@ public:
     ColumnView<ElementTy> getColumn(int col);
     // get raw data in memory
     virtual ElementTy* rawData() { return data.get(); }
+    // get upper triangle matrix
+    Matrix<ElementTy> upperTriangle();
+    // get lower triangle matrix
+    Matrix<ElementTy> lowerTriangle();
+    // get diagonal matrix
+    Matrix<ElementTy> diagonal();
 
     virtual ~MatrixBase() = default;
 
@@ -168,6 +178,30 @@ template <class ElementTy=float>
 class MatrixReshapeView : public MatrixBase<ElementTy> {
 public:
     MatrixReshapeView(MatrixBase<ElementTy> matrix, int new_row, int new_column);
+};
+
+template <class ElementTy=float>
+class UpperTriangularMatrixView : public MatrixBase<ElementTy> {
+public:
+    UpperTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+
+    ElementTy get(int row, int col) override { return col <= row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
+};
+
+template <class ElementTy=float>
+class LowerTriangularMatrixView : public MatrixBase<ElementTy> {
+public:
+    LowerTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+
+    ElementTy get(int row, int col) override { return col >= row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
+};
+
+template <class ElementTy=float>
+class DiagonalMatrixView : public MatrixBase<ElementTy> {
+public:
+    DiagonalMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+
+    ElementTy get(int row, int col) override { return col != row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
 };
 
 template <class ElementTy=float>
@@ -388,6 +422,21 @@ ColumnView<ElementTy> MatrixBase<ElementTy>::getColumn(int col) {
 template<class ElementTy>
 RowView<ElementTy> MatrixBase<ElementTy>::operator[](int row) {
     return std::move(getRow(row));
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::upperTriangle() {
+    return UpperTriangularMatrixView<ElementTy>(*this).clone();
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::lowerTriangle() {
+    return LowerTriangularMatrixView<ElementTy>(*this).clone();
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::diagonal() {
+    return DiagonalMatrixView<ElementTy>(*this).clone();
 }
 
 template<class ElementTy>
