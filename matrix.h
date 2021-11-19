@@ -9,6 +9,7 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <random>
 
 #define PERIOR_DEFINE_CLASS(class_name) template <class T> class class_name
 
@@ -86,6 +87,16 @@ public:
     Matrix<ElementTy> lowerTriangle();
     // get diagonal matrix
     Matrix<ElementTy> diagonal();
+    // create a new matrix woth same size to this matrix, with all elements are k
+    Matrix<ElementTy> shapeLike(ElementTy k);
+    // create a new matrix woth same size to this matrix, with all elements are 1
+    Matrix<ElementTy> onesLike() { return shapeLike(1); }
+    // create a new matrix woth same size to this matrix, with all elements are 0
+    Matrix<ElementTy> zerosLike() { return shapeLike(0); }
+    // get negative value
+    Matrix<ElementTy> operator- ();
+    // get positive value
+    Matrix<ElementTy> operator+ () { return clone(); }
 
     virtual ~MatrixBase() = default;
 
@@ -115,14 +126,17 @@ public:
     // swap two elements
     void swapElem(int col1, int row1, int col2, int row2);
     // get all-zero matrix
-    static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>
+    static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
     zeros(int r, int c);
     // get all-one matrix
-    static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>
+    static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
     ones(int r, int c);
     // get identity matrix
-    static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>
+    static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
     identity(int size, ElementTy value=1);
+    // get random matrix
+    static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
+    randn(int r, int c);
     // get a row
     MutableRowView<ElementTy> getMutableRow(int row);
     // get a row
@@ -132,6 +146,19 @@ public:
 
     ~Matrix();
 };
+
+class LogicalException : public std::exception {
+public:
+    const char* msg;
+    LogicalException(const char* msg): msg(msg) { }
+    const char * what() const noexcept override { return msg; }
+};
+
+#define REQUIRE_SQUARE_MATRIX() \
+        do {\
+            if (matrix.getRowCount() != matrix.getColumnCount())\
+                throw LogicalException("require a square matrix");\
+        } while (0)
 
 template <class ElementTy=float>
 class VectorView : public MatrixBase<ElementTy> {
@@ -183,7 +210,9 @@ public:
 template <class ElementTy=float>
 class UpperTriangularMatrixView : public MatrixBase<ElementTy> {
 public:
-    UpperTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+    UpperTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) {
+        REQUIRE_SQUARE_MATRIX();
+    }
 
     ElementTy get(int row, int col) override { return col <= row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
 };
@@ -191,7 +220,9 @@ public:
 template <class ElementTy=float>
 class LowerTriangularMatrixView : public MatrixBase<ElementTy> {
 public:
-    LowerTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+    LowerTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) {
+        REQUIRE_SQUARE_MATRIX();
+    }
 
     ElementTy get(int row, int col) override { return col >= row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
 };
@@ -199,10 +230,40 @@ public:
 template <class ElementTy=float>
 class DiagonalMatrixView : public MatrixBase<ElementTy> {
 public:
-    DiagonalMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+    DiagonalMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) {
+        REQUIRE_SQUARE_MATRIX();
+    }
 
     ElementTy get(int row, int col) override { return col != row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
 };
+
+template <class ElementTy=float>
+class KsLikeMatrixView : public MatrixBase<ElementTy> {
+public:
+    ElementTy k;
+    KsLikeMatrixView(MatrixBase<ElementTy> matrix, ElementTy k): MatrixBase<ElementTy>(matrix), k(k) { }
+
+    ElementTy get(int row, int col) override { return k; }
+};
+
+template <class ElementTy=float, ElementTy (*FuncPtr)(ElementTy)=nullptr>
+class ElementWiseMatrixView : public MatrixBase<ElementTy> {
+public:
+    ElementWiseMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+
+    ElementTy get(int row, int col) override { return FuncPtr(MatrixBase<ElementTy>::_get_elem(row, col)); }
+};
+
+#define DEFINE_ELEMENTWISE_OPERATOR_VIEW(class_name, operation) \
+template <class ElementTy> \
+ElementTy _CallFunc_##class_name(ElementTy x) { return operation; }\
+\
+template <class ElementTy = float>\
+using class_name = ElementWiseMatrixView<ElementTy, _CallFunc_##class_name>;
+
+DEFINE_ELEMENTWISE_OPERATOR_VIEW(NegativeMatrixView, -x)
+DEFINE_ELEMENTWISE_OPERATOR_VIEW(ElementWiseReciprocalView, 1/x)
+DEFINE_ELEMENTWISE_OPERATOR_VIEW(PositiveMatrixView, x)
 
 template <class ElementTy=float>
 class RowView : public VectorView<ElementTy> {
@@ -265,13 +326,6 @@ public:
     int getRowCount() override { return MatrixBase<ElementTy>::getRowCount(); }
 };
 
-
-class LogicalException : public std::exception {
-public:
-    const char* msg;
-    LogicalException(const char* msg): msg(msg) { }
-    const char * what() const noexcept override { return msg; }
-};
 
 typedef ColumnView<> column_view_t;
 typedef MutableColumnView<> mutable_column_view_t;
@@ -440,6 +494,16 @@ Matrix<ElementTy> MatrixBase<ElementTy>::diagonal() {
 }
 
 template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::operator-() {
+    return NegativeMatrixView<ElementTy>(*this).clone();
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::shapeLike(ElementTy k) {
+    return KsLikeMatrixView<ElementTy>(*this, k).clone();
+}
+
+template<class ElementTy>
 Matrix<ElementTy>::Matrix(ElementTy number) {
     ElementTy* _data = new ElementTy[1];
     MatrixBase<ElementTy>::data = _data;
@@ -508,22 +572,22 @@ void Matrix<ElementTy>::swapElem(int col1, int row1, int col2, int row2) {
 }
 
 template<class ElementTy>
-typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>
+typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
 Matrix<ElementTy>::zeros(int r, int c) {
     return std::move(Matrix<ElementTy>());
 }
 
 template<class ElementTy>
-typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>
+typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
 Matrix<ElementTy>::ones(int r, int c) {
     Matrix<ElementTy> mat(r, c);
     for (int i=0; i<r*c; i++)
-        mat.data[i] = 1;
+        mat.data.get()[i] = 1;
     return mat;
 }
 
 template<class ElementTy>
-typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>
+typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
 Matrix<ElementTy>::identity(int size, ElementTy value) {
     Matrix<ElementTy> mat(size, size);
     for (int i=0; i<size; i++)
@@ -539,6 +603,20 @@ MutableRowView<ElementTy> Matrix<ElementTy>::getMutableRow(int row) {
 template<class ElementTy>
 MutableColumnView<ElementTy> Matrix<ElementTy>::getMutableColumn(int col) {
     return MutableColumnView<ElementTy>(*this, col);
+}
+
+template<class ElementTy>
+typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
+Matrix<ElementTy>::randn(int r, int c) {
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_real_distribution<double> dist;
+
+    Matrix<ElementTy> mat(r, c);
+    ElementTy* data = mat.data.get();
+    for (int i=0; i<r*c; i++)
+        data[i] = dist(mt);
+    return mat;
 }
 
 template<class ElementTy>
