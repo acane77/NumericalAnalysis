@@ -88,7 +88,23 @@ iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX
     MATRIX_T x = x0;
     // A = D+l+U
     MATRIX_T L = A.lowerTriangle(), U = A.upperTriangle(), D = A.diagonal();
-
+    MATRIX_T DpL_inv = (D + L).inverse();  // (D+L)^-1
+    // f = (D+L)^-1b
+    MATRIX_T f = DpL_inv * b;
+    MATRIX_T B_G = -(DpL_inv * U);
+    ElementTy drt_x_l2norm;
+    int iter_count = 0;
+    do {
+        iter_count++;
+        // x_1 = -(D+L)^-1Ux_0+(D+L)^-1b
+        // x_1 = B_G * x_0 + f
+        MATRIX_T x1 = B_G * x + f;
+        drt_x_l2norm = (x - x1).l2Norm();
+        x = x1;
+    } while (drt_x_l2norm >= tol && iter_count < MAX_ITERATION_COUNT);
+    if (iter_count >= MAX_ITERATION_COUNT)
+        return ITER_UNCOVERAGED;
+    out_result = x;
     return ITER_OK;
 }
 

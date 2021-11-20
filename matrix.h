@@ -207,7 +207,7 @@ public:
 
 #define REQUIRE_SQUARE_MATRIX_(mat) \
         do {\
-            if ((mat).getRowCount() != (mat).getColumnCount())\
+            if (const_cast<MatrixBase<ElementTy>*>(&(mat))->getRowCount() != const_cast<MatrixBase<ElementTy>*>(&(mat))->getColumnCount())\
                 throw LogicalException("require a square matrix");\
         } while (0)
 
@@ -557,22 +557,22 @@ Matrix<ElementTy> MatrixBase<ElementTy>::dot(const MatrixBase<ElementTy>& anothe
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::operator*(const MatrixBase<ElementTy>& another) {
-    int maxMid = max(this->getColumnCount(), another.getRowCount());
+    int maxMid = max(this->getColumnCount(), const_cast<MatrixBase<ElementTy>*>(&another)->getRowCount());
 
     MatrixBoardcastView<ElementTy>* mv1 = new MatrixBoardcastView<ElementTy>(*this, this->getRowCount(), maxMid);
-    MatrixBoardcastView<ElementTy>* mv2 = new MatrixBoardcastView<ElementTy>(another, maxMid, another.getColumnCount());
+    MatrixBoardcastView<ElementTy>* mv2 = new MatrixBoardcastView<ElementTy>(*const_cast<MatrixBase<ElementTy>*>(&another), maxMid, const_cast<MatrixBase<ElementTy>*>(&another)->getColumnCount());
 
     size_t new_row = this->getRowCount();
-    size_t new_col = another.getColumnCount();
+    size_t new_col = const_cast<MatrixBase<ElementTy>*>(&another)->getColumnCount();
     Matrix m(new_row, new_col);
-    printf("max_mid=%d, new_row=%d, new_col=%d\n", maxMid, new_row, new_col);
+    //printf("max_mid=%d, new_row=%d, new_col=%d\n", maxMid, new_row, new_col);
 
     for (int i=0; i<new_row; i++) {
         for (int j=0; j<new_col; j++) {
             ElementTy result = 0;
             for (int k=0; k<maxMid; k++) {
                 //printf("%f * %f = %f\n", get(i, k), another.get(k, j), get(i, k) * another.get(k, j));
-                result += this->get(i, k) * another.get(k, j);
+                result += this->get(i, k) * const_cast<MatrixBase<ElementTy>*>(&another)->get(k, j);
             }
             m.set(i, j, result);
         }
