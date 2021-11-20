@@ -1,12 +1,16 @@
 #include <iostream>
-#include "matrix.h"
+#include "equation.h"
 
 using namespace std;
 
 int main() {
     try {
-        matrix_t mat = matrix_t::randn(3,4);
-        mat.print();
+        matrix_t A = {{8,-3,2},{4,11,-1},{2,1,4}};
+        matrix_t b = {20,33,12};
+        matrix_t x0 = b.zerosLike();
+        matrix_t x;
+        jacobiInteration(A, b, x0, 1e-6f, x);
+        PRINT_MAT(x);
         return 0;
     }
     catch (std::exception& err) {

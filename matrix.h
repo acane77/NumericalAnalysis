@@ -39,6 +39,10 @@ public:
         int printEnd(std::ostream &os) override;
     };
     DefaultFormatter defaultFormatter;
+    Formatter* _commonFormatter = nullptr;
+public:
+    void setFormatter(Formatter* fmt) { _commonFormatter = fmt; }
+    Formatter* getFormatter() { return _commonFormatter; }
 protected:
     // Represents the real columns and rows of matrix i memory,
     // Note: even in matrix views, this numCol and numRow is also represent
@@ -63,14 +67,16 @@ public:
     virtual ElementTy get(int row, int col) { return *(data.get() + (row * numCol) + col); }
     // Print the matrix
     void print(std::ostream &os = std::cout, MatrixBase::Formatter *formatter = nullptr);
+    // Print the matrix
+    friend std::ostream& operator<< (std::ostream& os, MatrixBase<ElementTy> mat) { mat.print(os); return os; }
     // Perform broadcast add
-    Matrix<ElementTy> operator+ (Matrix<ElementTy>& another) ;
+    Matrix<ElementTy> operator+ (Matrix<ElementTy> another) ;
     // Perform broadcast substract
-    Matrix<ElementTy> operator- (Matrix<ElementTy>& another) ;
+    Matrix<ElementTy> operator- (Matrix<ElementTy> another) ;
     // Perform broadcast multiply
-    Matrix<ElementTy> operator* (Matrix<ElementTy>& another) ;
+    Matrix<ElementTy> operator* (Matrix<ElementTy> another) ;
     // Perform broadcast dot multiply
-    Matrix<ElementTy> dot(Matrix<ElementTy>& another) ;
+    Matrix<ElementTy> dot(Matrix<ElementTy> another) ;
     // Clone into another mutable matrix
     Matrix<ElementTy> clone();
     // Get logical column count
@@ -115,10 +121,25 @@ public:
     Matrix<ElementTy> operator- ();
     // get positive value
     Matrix<ElementTy> operator+ () { return clone(); }
+    // get absoulte value of each element
+    Matrix<ElementTy> abs();
+    // get L1 norm of matrix
+    ElementTy l1Norm();
+    // get L2 norm of matrix
+    ElementTy l2Norm();
+    // get infinte norm of matrix
+    ElementTy infNorm();
+    // get sum of matrix
+    ElementTy sum();
+    // get max element
+    ElementTy max();
+    // get max of given dimension
+    Matrix<ElementTy> max(int dim);
+
 
     virtual ~MatrixBase() = default;
 
-private:
+protected:
     ElementTy* getRawData(int row, int col) { return (data.get() + (row * numCol) + col); }
 };
 
@@ -135,6 +156,8 @@ public:
     Matrix(const std::initializer_list<ElementTy>& data);
     Matrix(ElementTy number);
     Matrix(int nr, int nc);
+    // intiialize with an empty matrix, means a placeholder for matrix, no operation can be performed
+    Matrix() = default;
     // set value of an element
     void set(int row, int col, ElementTy value) override;
     // swap two rows
@@ -264,24 +287,25 @@ public:
     ElementTy get(int row, int col) override { return k; }
 };
 
-template <class ElementTy=float, ElementTy (*FuncPtr)(ElementTy)=nullptr>
+template <class ElementTy=float, ElementTy (*FuncPtr)(ElementTy, int, int)=nullptr>
 class ElementWiseMatrixView : public MatrixBase<ElementTy> {
 public:
     ElementWiseMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
 
-    ElementTy get(int row, int col) override { return FuncPtr(MatrixBase<ElementTy>::_get_elem(row, col)); }
+    ElementTy get(int row, int col) override { return FuncPtr(MatrixBase<ElementTy>::_get_elem(row, col), row, col); }
 };
 
 #define DEFINE_ELEMENTWISE_OPERATOR_VIEW(class_name, operation) \
 template <class ElementTy> \
-ElementTy _CallFunc_##class_name(ElementTy x) { return operation; }\
+ElementTy _CallFunc_##class_name(ElementTy x, int row, int col) { return operation; }\
 \
 template <class ElementTy = float>\
 using class_name = ElementWiseMatrixView<ElementTy, _CallFunc_##class_name>;
 
 DEFINE_ELEMENTWISE_OPERATOR_VIEW(NegativeMatrixView, -x)
-DEFINE_ELEMENTWISE_OPERATOR_VIEW(ElementWiseReciprocalView, 1/x)
+DEFINE_ELEMENTWISE_OPERATOR_VIEW(ElementWiseReciprocalView, row == col ? 1/x : 0)
 DEFINE_ELEMENTWISE_OPERATOR_VIEW(PositiveMatrixView, x)
+DEFINE_ELEMENTWISE_OPERATOR_VIEW(AbsoluteMatrixView, x >= 0 ? x : -x)
 
 template <class ElementTy=float>
 class RowView : public VectorView<ElementTy> {
@@ -417,8 +441,8 @@ template<class ElementTy>
 MatrixBase<ElementTy>::MatrixBase(const MatrixBase &another): numCol(another.numCol), numRow(another.numRow), data(another.data) { }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::operator+(Matrix<ElementTy> &another) {
-    return boardcastBinaryOperator(another, [] (int a, int b) { return a + b; });
+Matrix<ElementTy> MatrixBase<ElementTy>::operator+(Matrix<ElementTy> another) {
+    return boardcastBinaryOperator(another, [] (ElementTy a, ElementTy b) { return a + b; });
 }
 
 template<class ElementTy>
@@ -470,17 +494,17 @@ Matrix<ElementTy> MatrixBase<ElementTy>::boardcastBinaryOperator(Matrix<ElementT
 }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::operator-(Matrix<ElementTy> &another) {
-    return boardcastBinaryOperator(another, [](int a, int b) { return a - b; });
+Matrix<ElementTy> MatrixBase<ElementTy>::operator-(Matrix<ElementTy> another) {
+    return boardcastBinaryOperator(another, [](ElementTy a, ElementTy b) { return a - b; });
 }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::dot(Matrix<ElementTy> &another) {
-    return boardcastBinaryOperator(another, [](int a, int b) { return a * b; });
+Matrix<ElementTy> MatrixBase<ElementTy>::dot(Matrix<ElementTy> another) {
+    return boardcastBinaryOperator(another, [](ElementTy a, ElementTy b) { return a * b; });
 }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::operator*(Matrix<ElementTy> &another) {
+Matrix<ElementTy> MatrixBase<ElementTy>::operator*(Matrix<ElementTy> another) {
     int maxMid = max(this->getColumnCount(), another.getRowCount());
 
     MatrixBoardcastView<ElementTy>* mv1 = new MatrixBoardcastView<ElementTy>(*this, this->getRowCount(), maxMid);
@@ -493,7 +517,7 @@ Matrix<ElementTy> MatrixBase<ElementTy>::operator*(Matrix<ElementTy> &another) {
 
     for (int i=0; i<new_row; i++) {
         for (int j=0; j<new_col; j++) {
-            int result = 0;
+            ElementTy result = 0;
             for (int k=0; k<maxMid; k++) {
                 //printf("%f * %f = %f\n", get(i, k), another.get(k, j), get(i, k) * another.get(k, j));
                 result += this->get(i, k) * another.get(k, j);
@@ -547,6 +571,8 @@ Matrix<ElementTy> MatrixBase<ElementTy>::shapeLike(ElementTy k) {
 template<class ElementTy>
 void MatrixBase<ElementTy>::print(std::ostream &os, MatrixBase::Formatter *formatter) {
     if (formatter == nullptr)
+        formatter = _commonFormatter;
+    if (formatter == nullptr)
         formatter = &defaultFormatter;
     int r = getRowCount(), c = getColumnCount();
     formatter->printMatrixStart(os);
@@ -559,6 +585,102 @@ void MatrixBase<ElementTy>::print(std::ostream &os, MatrixBase::Formatter *forma
         formatter->printLineEnd(os, i, r, c);
     }
     formatter->printEnd(os);
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::abs() {
+    return AbsoluteMatrixView<ElementTy>(*this).clone();
+}
+
+template<class ElementTy>
+ElementTy MatrixBase<ElementTy>::sum() {
+    int r = this->getRowCount(), c = this->getColumnCount();
+    ElementTy sum = 0;
+    for (int i=0; i<r; i++) {
+        for (int j=0; j<c; j++)
+            sum += this->get(i, j);
+    }
+    return sum;
+}
+
+template<class ElementTy>
+ElementTy MatrixBase<ElementTy>::max() {
+    int r = this->getRowCount(), c = this->getColumnCount();
+    ElementTy _max = this->get(0, 0);
+    for (int i=0; i<r; i++) {
+        for (int j=0; j<c; j++)
+            _max = max(_max, this->get(i, j));
+    }
+    return _max;
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::max(int dim) {
+    int n;
+    // calc max on rows, returs rows
+    if (dim == 0) {
+        n = this->getRowCount();
+        Matrix<ElementTy> mat(1, n);
+        printf("n=%d\n", n);
+        for (int i=0; i<n; i++) {
+            this->getRow(i).print();
+            ElementTy max_val = this->getRow(i).max();
+            mat[0][i] = max_val;
+        }
+        return mat;
+    }
+    // calc max on cols, returns cols
+    else if (dim == 1) {
+        n = this->getColumnCount();
+        Matrix<ElementTy> mat(1, n);
+        for (int i=0; i<n; i++) {
+            ElementTy max_val = this->getColumn(i).max();
+            mat[0][i] = max_val;
+        }
+        return mat;
+    }
+    throw LogicalException("no such dimension");
+}
+
+template<class ElementTy>
+ElementTy MatrixBase<ElementTy>::l1Norm() {
+    int n = this->getColumnCount();
+    ElementTy _max = this->getColumn(0).sum();
+    for (int i=1; i<n; i++) {
+        _max = max(_max, this->getColumn(i).sum());
+    }
+    return _max;
+}
+
+template<class ElementTy>
+ElementTy MatrixBase<ElementTy>::infNorm() {
+    int n = this->getRowCount();
+    ElementTy _max = this->getRow(0).sum();
+    for (int i=1; i<n; i++) {
+        _max = max(_max, this->getRow(i).sum());
+    }
+    return _max;
+}
+
+template<class ElementTy>
+ElementTy MatrixBase<ElementTy>::l2Norm() {
+    // if is vector, calculate vector
+    int c = this->getColumnCount(), r = this->getRowCount();
+    MatrixBase<ElementTy>* mat = this;
+    if (c == 1 || r == 1) {
+        // if is vertical vector, transpose it
+        auto transposedMat = MatrixTransposeView<ElementTy>(*this);
+        if (c == 1)
+            mat = &transposedMat;
+        ElementTy sum = 0;
+        for (int i=0; i<c; i++) {
+            ElementTy val = mat->get(0, i);
+            sum += val * val;
+        }
+        return sqrt(sum);
+    }
+    // calc L2 norm of matrix using \lambdaE - A = 0
+    throw "unimplemented";
 }
 
 template<class ElementTy>
