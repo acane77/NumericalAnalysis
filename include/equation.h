@@ -13,7 +13,7 @@
 /// \param out_result  [OUT] result x
 /// \return a value indicates if iteration is successful, return ITER_OK if successful
 MATRIX_API
-iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
+na_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
 
 /// Perform Gauss-Seidel iteration on linear equation Ax=b
 /// \param A           [IN]  coefficient matrix A
@@ -22,7 +22,7 @@ iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& 
 /// \param out_result  [OUT] result x
 /// \return a value indicates if iteration is successful, return ITER_OK if successful
 MATRIX_API
-iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
+na_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
 
 /// Perform SOR iteration on linear equation Ax=b
 /// \param A           [IN]  coefficient matrix A
@@ -32,7 +32,7 @@ iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX
 /// \param out_result  [OUT] result x
 /// \return a value indicates if iteration is successful, return ITER_OK if successful
 MATRIX_API
-iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result);
+na_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result);
 
 // ==================  NON-LINEAR EQUATIONS  ===================
 
@@ -44,7 +44,7 @@ iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, M
 /// \param out_result  [OUT] result x
 /// \return a value indicates if iteration is successful, return ITER_OK if successful
 EQU_API
-iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result);
+na_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result);
 
 // ==============================================================
 //                       IMPLEMENTATIONS
@@ -52,7 +52,7 @@ iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, 
 
 #define PERFORM_SQUARE_MATRIX_CHECK(mat) do { \
     if ((mat).getColumnCount() != (mat).getRowCount())\
-        return ITER_REQUIRE_SQUARE_MATRIX; \
+        return NA_REQUIRE_SQUARE_MATRIX; \
 } while (0)
 
 #define TRANSPOSE_INPUT_TO_HERIZONTAL(mat) \
@@ -64,7 +64,7 @@ iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, 
 #define PERFORMER_MATRIX_COLUMN_CHECK(mat, expected_row_count) \
     do {\
         if ((mat).getColumnCount() != (expected_row_count))\
-            return ITER_INVADE_ARG;\
+            return NA_INVADE_ARG;\
     } while (0)
 
 #define ITER_CHECKARGS() \
@@ -75,7 +75,7 @@ iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, 
     } while(0)
 
 MATRIX_API
-iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result) {
+na_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result) {
     ITER_CHECKARGS();
     MATRIX_T x0 = b.zerosLike();
     MATRIX_T x = x0;
@@ -86,7 +86,7 @@ iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& 
     MATRIX_T B_J = D_r * (L + U);
     // f = D^-1*b
     MATRIX_T f = D_r * b;
-    ElementTy drt_x_l2norm;
+    ELEMENT_T drt_x_l2norm;
     int iter_count = 0;
     do {
         iter_count++;
@@ -96,13 +96,13 @@ iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& 
         x = x1;
     } while (drt_x_l2norm >= tol && iter_count < MAX_ITERATION_COUNT);
     if (iter_count >= MAX_ITERATION_COUNT)
-        return ITER_UNCOVERAGED;
+        return NA_ITER_UNCOVERAGED;
     out_result = x;
-    return ITER_OK;
+    return NA_OK;
 }
 
 MATRIX_API
-iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result) {
+na_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result) {
     ITER_CHECKARGS();
     MATRIX_T x0 = b.zerosLike();
     MATRIX_T x = x0;
@@ -112,7 +112,7 @@ iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX
     // f = (D+L)^-1b
     MATRIX_T f = DpL_inv * b;
     MATRIX_T B_G = -(DpL_inv * U);
-    ElementTy drt_x_l2norm;
+    ELEMENT_T drt_x_l2norm;
     int iter_count = 0;
     do {
         iter_count++;
@@ -123,16 +123,16 @@ iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX
         x = x1;
     } while (drt_x_l2norm >= tol && iter_count < MAX_ITERATION_COUNT);
     if (iter_count >= MAX_ITERATION_COUNT)
-        return ITER_UNCOVERAGED;
+        return NA_ITER_UNCOVERAGED;
     out_result = x;
-    return ITER_OK;
+    return NA_OK;
 }
 
 MATRIX_API
-iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result) {
+na_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result) {
     ITER_CHECKARGS();
     if (w <= 0 || w >= 2)
-        return ITER_INVADE_ARG;
+        return NA_INVADE_ARG;
     MATRIX_T x0 = b.zerosLike();
     MATRIX_T x = x0;
     // A = D+l+U
@@ -142,7 +142,7 @@ iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, M
     MATRIX_T f = DmwL_inv * w * b;
     // B_w = (D-wL)^-1((1-w)D+wU)
     MATRIX_T B_w = DmwL_inv * (D * (1-w) + U * w);
-    ElementTy drt_x_l2norm;
+    ELEMENT_T drt_x_l2norm;
     int iter_count = 0;
     do {
         iter_count++;
@@ -152,13 +152,40 @@ iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, M
         x = x1;
     } while (drt_x_l2norm >= tol && iter_count < MAX_ITERATION_COUNT);
     if (iter_count >= MAX_ITERATION_COUNT)
-        return ITER_UNCOVERAGED;
+        return NA_ITER_UNCOVERAGED;
     out_result = x;
-    return ITER_OK;
+    return NA_OK;
+}
+
+MATRIX_API
+na_result_t gaussianReduce(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result) {
+    MATRIX_T b = _b;
+    MATRIX_T A = _A.clone();
+    ITER_CHECKARGS();
+    // (A|b) = (E|x)
+    int n = _A.getColumnCount();
+    MATRIX_T x = b.clone();
+
+    for (int i = 0; i < n; i++) {
+        ELEMENT_T A_ii = A[i][i];
+        A[i] = A[i] / A_ii; x[i][0] = x[i][0] / A_ii;
+        for (int j = i + 1; j < n; j++) {
+            ELEMENT_T A_ji = A[j][i];
+            A[j] = A[j].clone() - A[i] * A_ji; x[j][0] = x[j][0] - x[i][0] * A_ji;
+        }
+    }
+    for (int i = n - 1; i >= 0; i--) {
+        for (int j = i - 1; j >= 0; j--) {
+            ELEMENT_T A_ji = A[j][i];
+            A[j] = A[j].clone() - A[i] * A_ji; x[j][0] = x[j][0] - x[i][0] * A_ji;
+        }
+    }
+    out_result = x;
+    return NA_OK;
 }
 
 EQU_API 
-iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result) {
+na_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result) {
     VALUE_T drt;
     int iter_count = 0;
     VALUE_T x;
@@ -169,9 +196,9 @@ iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, 
         x1 = x;
     } while (drt >= epsilon && iter_count < MAX_ITERATION_COUNT);
     if (iter_count >= MAX_ITERATION_COUNT)
-        return ITER_UNCOVERAGED;
+        return NA_ITER_UNCOVERAGED;
     out_result = x;
-    return ITER_OK;
+    return NA_OK;
 }
 
 // undefine some references

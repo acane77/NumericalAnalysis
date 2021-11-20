@@ -17,6 +17,8 @@ int main() {
         PRINT_MAT(x);
         SORIteration(A, b, 1.0f, 1e-6f, x);
         PRINT_MAT(x);
+        gaussianReduce(A, b, x);
+        PRINT_MAT(x);
         float _x;
         int ret = newtonIteration(f, -1.0f, 1.0f, 1e-6f, _x);
         PRINT_MAT(_x);

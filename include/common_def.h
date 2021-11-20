@@ -21,11 +21,11 @@ using DualMetaFunction = ValTy(*)(ValTy x, ValTy y);
 using dual_meta_function_t = DualMetaFunction<float>;
 #define DUAL_META_FUNCTION_T DualMetaFunction<ValTy>
 
-enum iter_result_t {
-    ITER_OK = 0,                      // iteration success
-    ITER_UNCOVERAGED = 1,             // equation is uncoveraged
-    ITER_REQUIRE_SQUARE_MATRIX = 2,   // require a square matrix for input
-    ITER_INVADE_ARG = 3,              // invalid argument
+enum na_result_t {
+    NA_OK = 0,                        // success
+    NA_ITER_UNCOVERAGED = 1,          // equation is uncoveraged
+    NA_REQUIRE_SQUARE_MATRIX = 2,     // require a square matrix for input
+    NA_INVADE_ARG = 3,                // invalid argument
 };
 
 
