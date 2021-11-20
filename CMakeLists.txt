@@ -3,4 +3,4 @@ project(libnumanalysis)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(libnumanalysis main.cpp matrix.h equation.h)
+add_executable(libnumanalysis main.cpp matrix.h equation.h "calculus.h")
