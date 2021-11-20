@@ -1,8 +1,10 @@
 # Numerical Analysis Library
 
-This is a header-only library, just copy `equation.h` and `matrix.h` to your project to use this libaray.
+**still working on**
 
-Sample usage:
+This is a header-only library, just copy files in `include` directory to your project to use this libaray.
+
+Sample usage (also see `example`):
 
 ```c++
 #include <iostream>

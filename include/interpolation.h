@@ -1,5 +1,5 @@
 #ifndef LIBNUMANALYSIS_INTERPOLATION_H
 
-
+#include "common_def.h"
 
 #endif //LIBNUMANALYSIS_INTERPOLATION_H
