@@ -5,8 +5,6 @@
 
 #define MAX_ITERATION_COUNT 300
 
-#define PRINT_MAT(M) std::cout << #M << " = " << (M)
-
 #define MATRIX_API template <class ElementTy>
 #define MATRIX_T   Matrix<ElementTy>
 #define MATRIX_FROM_VIEW(view_name, mat) view_name<ElementTy>(mat).clone()

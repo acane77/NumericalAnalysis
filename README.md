@@ -1,3 +1,10 @@
+# Numerical Analysis Library
+
+This is a header-only library, just copy `equation.h` and `matrix.h` to your project to use this libaray.
+
+Sample usage:
+
+```c++
 #include <iostream>
 #include "equation.h"
 
@@ -21,3 +28,21 @@ int main() {
         cout << err.what() << endl;
     }
 }
+```
+
+The output would be:
+```
+x =
+[[3         ]
+ [2         ]
+ [1         ]]
+x =
+[[3         ]
+ [2         ]
+ [1         ]]
+x =
+[[3         ]
+ [2         ]
+ [1         ]]
+```
+

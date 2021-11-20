@@ -408,7 +408,7 @@ typedef MutableColumnView<> mutable_column_view_t;
 typedef RowView<> row_view_t;
 typedef MutableRowView<> mutable_row_view_t;
 
-#define PRINT_MAT(M) std::cout << #M << " = " << (M)
+#define PRINT_MAT(M) std::cout << #M << " = \n" << (M)
 
 ///////////////////////////////////////////////////////////////////////////
 
