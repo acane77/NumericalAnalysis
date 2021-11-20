@@ -13,17 +13,51 @@
 #define ELEMENT_T  ElementTy
 
 enum iter_result_t {
-    ITER_OK = 0,
-    ITER_UNCOVERAGED = 1,
-    ITER_REQUIRE_SQUARE_MATRIX = 2
+    ITER_OK = 0,                      // iteration success
+    ITER_UNCOVERAGED = 1,             // equation is uncoveraged
+    ITER_REQUIRE_SQUARE_MATRIX = 2,   // require a square matrix for input
+    ITER_INVADE_ARG = 3,              // invalid argument
 };
 
+/// Perform Jacobi iteration on linear equation Ax=b
+/// \param A           [IN]  coefficient matrix A
+/// \param b           [IN]  b
+/// \param tol         [IN]  order of convergence
+/// \param out_result  [OUT] result x
+/// \return a value indicates if iteration is successful, return ITER_OK if successful
 MATRIX_API
-iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, MATRIX_T x0, ELEMENT_T tol, MATRIX_T& out_result) {
-    if (b.getRowCount() == 1)
-        b = b.transpose();
-    if (x0.getRowCount() == 1)
-        x0 = x0.transpose();
+iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
+
+// ==========================================================
+
+#define PERFORM_SQUARE_MATRIX_CHECK(mat) do { \
+    if ((mat).getColumnCount() != (mat).getRowCount())\
+        return ITER_REQUIRE_SQUARE_MATRIX; \
+} while (0)
+
+#define TRANSPOSE_INPUT_TO_HERIZONTAL(mat) \
+    do {\
+        if ((mat).getRowCount() == 1)\
+            (mat) = (mat).transpose();\
+    } while (0)
+
+#define PERFORMER_MATRIX_COLUMN_CHECK(mat, expected_row_count) \
+    do {\
+        if ((mat).getColumnCount() != (expected_row_count))\
+            return ITER_INVADE_ARG;\
+    } while (0)
+
+#define ITER_CHECKARGS() \
+    do {            \
+    PERFORM_SQUARE_MATRIX_CHECK(A);\
+    TRANSPOSE_INPUT_TO_HERIZONTAL(b);\
+    PERFORMER_MATRIX_COLUMN_CHECK(b, 1);\
+    } while(0)
+
+MATRIX_API
+iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result) {
+    ITER_CHECKARGS();
+    MATRIX_T x0 = b.zerosLike();
     MATRIX_T x = x0;
     // A = D-l-U
     MATRIX_T L = -(A.lowerTriangle()), U = -(A.upperTriangle()), D = A.diagonal();
@@ -46,5 +80,22 @@ iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, MATRIX_T x0, ELEMENT_T to
     out_result = x;
     return ITER_OK;
 }
+
+MATRIX_API
+iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result) {
+    ITER_CHECKARGS();
+    MATRIX_T x0 = b.zerosLike();
+    MATRIX_T x = x0;
+    // A = D+l+U
+    MATRIX_T L = A.lowerTriangle(), U = A.upperTriangle(), D = A.diagonal();
+
+    return ITER_OK;
+}
+
+// undefine some references
+#undef PERFORM_SQUARE_MATRIX_CHECK
+#undef TRANSPOSE_INPUT_TO_HERIZONTAL
+#undef PERFORMER_MATRIX_COLUMN_CHECK
+#undef ITER_CHECKARGS
 
 #endif //LIBNUMANALYSIS_EQUATION_H

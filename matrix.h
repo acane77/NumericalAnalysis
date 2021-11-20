@@ -62,21 +62,22 @@ protected:
     ElementTy& _get_elem_ref(int row, int col) { return *(data.get() + (row * numCol) + col); };
 
 public:
+    // reference constructor
     MatrixBase(const MatrixBase& another);
     // Get element at given row and column
     virtual ElementTy get(int row, int col) { return *(data.get() + (row * numCol) + col); }
     // Print the matrix
     void print(std::ostream &os = std::cout, MatrixBase::Formatter *formatter = nullptr);
     // Print the matrix
-    friend std::ostream& operator<< (std::ostream& os, MatrixBase<ElementTy> mat) { mat.print(os); return os; }
+    friend std::ostream& operator<< (std::ostream& os, const MatrixBase<ElementTy>& mat) { const_cast<MatrixBase<ElementTy>*>(&mat)->print(os); return os; }
     // Perform broadcast add
-    Matrix<ElementTy> operator+ (Matrix<ElementTy> another) ;
+    Matrix<ElementTy> operator+ (const MatrixBase<ElementTy>& another) ;
     // Perform broadcast substract
-    Matrix<ElementTy> operator- (Matrix<ElementTy> another) ;
+    Matrix<ElementTy> operator- (const MatrixBase<ElementTy>& another) ;
     // Perform broadcast multiply
-    Matrix<ElementTy> operator* (Matrix<ElementTy> another) ;
+    Matrix<ElementTy> operator* (const MatrixBase<ElementTy>& another) ;
     // Perform broadcast dot multiply
-    Matrix<ElementTy> dot(Matrix<ElementTy> another) ;
+    Matrix<ElementTy> dot(const MatrixBase<ElementTy>& another) ;
     // Clone into another mutable matrix
     Matrix<ElementTy> clone();
     // Get logical column count
@@ -96,7 +97,7 @@ public:
     // boardcast to new size (will not create new object)
     MatrixBase<ElementTy> boardcastTo(int r, int c);
     // boardcast binary op
-    Matrix<ElementTy> boardcastBinaryOperator(Matrix<ElementTy>& another, const std::function<ElementTy (ElementTy, ElementTy)>& op_handler);
+    Matrix<ElementTy> boardcastBinaryOperator(const MatrixBase<ElementTy>& another, const std::function<ElementTy (ElementTy, ElementTy)>& op_handler);
     // get a row
     RowView<ElementTy> getRow(int row);
     // get a row
@@ -135,7 +136,14 @@ public:
     ElementTy max();
     // get max of given dimension
     Matrix<ElementTy> max(int dim);
-
+    // get inverse matrix
+    Matrix<ElementTy> inverse() { return std::move(inverseGaussJordan()); }
+    // get inverse matrix via Gauss-Jordan method
+    Matrix<ElementTy> inverseGaussJordan();
+    // divide a number
+    Matrix<ElementTy> operator / (ElementTy n);
+    // times a number
+    Matrix<ElementTy> operator * (ElementTy n);
 
     virtual ~MatrixBase() = default;
 
@@ -181,7 +189,7 @@ public:
     // get a row
     MutableRowView<ElementTy> getMutableRow(int row);
     // get a row
-    MutableRowView<ElementTy> operator[] (int row) { return std::move(getMutableRow(row)); }
+    MutableRowView<ElementTy> operator[] (int row) { return std::move(this->getMutableRow(row)); }
     // get a column
     MutableColumnView<ElementTy> getMutableColumn(int col);
 
@@ -195,16 +203,18 @@ public:
     const char * what() const noexcept override { return msg; }
 };
 
-#define REQUIRE_SQUARE_MATRIX() \
+#define REQUIRE_SQUARE_MATRIX() REQUIRE_SQUARE_MATRIX_(matrix)
+
+#define REQUIRE_SQUARE_MATRIX_(mat) \
         do {\
-            if (matrix.getRowCount() != matrix.getColumnCount())\
+            if ((mat).getRowCount() != (mat).getColumnCount())\
                 throw LogicalException("require a square matrix");\
         } while (0)
 
 template <class ElementTy=float>
 class VectorView : public MatrixBase<ElementTy> {
 public:
-    VectorView(MatrixBase<ElementTy> matrix) : MatrixBase<ElementTy>(matrix) { }
+    VectorView(const MatrixBase<ElementTy>& matrix) : MatrixBase<ElementTy>(matrix) { }
     virtual ElementTy get(int index) = 0;
 };
 
@@ -215,7 +225,7 @@ protected:
         *(MatrixBase<ElementTy>::data.get() + (row * MatrixBase<ElementTy>::numCol) + col) = value;
     }
 public:
-    MutableVectorView(MatrixBase<ElementTy> matrix) : MatrixBase<ElementTy>(matrix) { }
+    MutableVectorView(const MatrixBase<ElementTy>& matrix) : MatrixBase<ElementTy>(matrix) { }
     virtual ElementTy get(int index) = 0;
     virtual void set(int index, ElementTy value) = 0;
 };
@@ -225,7 +235,7 @@ class MatrixBoardcastView : public MatrixBase<ElementTy> {
     float scaleRow, scaleCol;
     int newCol, newRow;
 public:
-    MatrixBoardcastView(MatrixBase<ElementTy> matrix, int newRow, int newCol);
+    MatrixBoardcastView(const MatrixBase<ElementTy>& matrix, int newRow, int newCol);
 
     ElementTy get(int row, int col) override;
     int getColumnCount() override { return newCol; }
@@ -235,7 +245,7 @@ public:
 template <class ElementTy=float>
 class MatrixTransposeView : public MatrixBase<ElementTy> {
 public:
-    MatrixTransposeView(MatrixBase<ElementTy> matrix);
+    MatrixTransposeView(const MatrixBase<ElementTy>& matrix);
 
     ElementTy get(int row, int col) override;
     int getColumnCount() override;
@@ -245,13 +255,13 @@ public:
 template <class ElementTy=float>
 class MatrixReshapeView : public MatrixBase<ElementTy> {
 public:
-    MatrixReshapeView(MatrixBase<ElementTy> matrix, int new_row, int new_column);
+    MatrixReshapeView(const MatrixBase<ElementTy>& matrix, int new_row, int new_column);
 };
 
 template <class ElementTy=float>
 class UpperTriangularMatrixView : public MatrixBase<ElementTy> {
 public:
-    UpperTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) {
+    UpperTriangularMatrixView(const MatrixBase<ElementTy>& matrix): MatrixBase<ElementTy>(matrix) {
         REQUIRE_SQUARE_MATRIX();
     }
 
@@ -261,7 +271,7 @@ public:
 template <class ElementTy=float>
 class LowerTriangularMatrixView : public MatrixBase<ElementTy> {
 public:
-    LowerTriangularMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) {
+    LowerTriangularMatrixView(const MatrixBase<ElementTy>& matrix): MatrixBase<ElementTy>(matrix) {
         REQUIRE_SQUARE_MATRIX();
     }
 
@@ -271,7 +281,7 @@ public:
 template <class ElementTy=float>
 class DiagonalMatrixView : public MatrixBase<ElementTy> {
 public:
-    DiagonalMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) {
+    DiagonalMatrixView(const MatrixBase<ElementTy>& matrix): MatrixBase<ElementTy>(matrix) {
         REQUIRE_SQUARE_MATRIX();
     }
 
@@ -282,7 +292,7 @@ template <class ElementTy=float>
 class KsLikeMatrixView : public MatrixBase<ElementTy> {
 public:
     ElementTy k;
-    KsLikeMatrixView(MatrixBase<ElementTy> matrix, ElementTy k): MatrixBase<ElementTy>(matrix), k(k) { }
+    KsLikeMatrixView(const MatrixBase<ElementTy>& matrix, ElementTy k): MatrixBase<ElementTy>(matrix), k(k) { }
 
     ElementTy get(int row, int col) override { return k; }
 };
@@ -290,9 +300,9 @@ public:
 template <class ElementTy=float, ElementTy (*FuncPtr)(ElementTy, int, int)=nullptr>
 class ElementWiseMatrixView : public MatrixBase<ElementTy> {
 public:
-    ElementWiseMatrixView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+    ElementWiseMatrixView(const MatrixBase<ElementTy>& matrix): MatrixBase<ElementTy>(matrix) { }
 
-    ElementTy get(int row, int col) override { return FuncPtr(MatrixBase<ElementTy>::_get_elem(row, col), row, col); }
+    ElementTy get(int row, int col) override { return FuncPtr(this->_get_elem(row, col), row, col); }
 };
 
 #define DEFINE_ELEMENTWISE_OPERATOR_VIEW(class_name, operation) \
@@ -307,6 +317,25 @@ DEFINE_ELEMENTWISE_OPERATOR_VIEW(ElementWiseReciprocalView, row == col ? 1/x : 0
 DEFINE_ELEMENTWISE_OPERATOR_VIEW(PositiveMatrixView, x)
 DEFINE_ELEMENTWISE_OPERATOR_VIEW(AbsoluteMatrixView, x >= 0 ? x : -x)
 
+template <class ElementTy=float, ElementTy (*FuncPtr)(ElementTy, ElementTy, int, int)=nullptr>
+class ElementWiseNumbericOperateView : public MatrixBase<ElementTy> {
+public:
+    ElementTy k;
+    ElementWiseNumbericOperateView(const MatrixBase<ElementTy>& matrix, ElementTy k): MatrixBase<ElementTy>(matrix), k(k) { }
+
+    ElementTy get(int row, int col) override { return FuncPtr(this->_get_elem(row, col), k, row, col); }
+};
+
+#define DEFINE_ELEMENTWISE_NUMBERIC_OPERATOR_VIEW(class_name, operation) \
+template <class ElementTy> \
+ElementTy _CallFunc_##class_name(ElementTy x, ElementTy n, int row, int col) { return operation; }\
+\
+template <class ElementTy = float>\
+using class_name = ElementWiseNumbericOperateView<ElementTy, _CallFunc_##class_name>;
+
+DEFINE_ELEMENTWISE_NUMBERIC_OPERATOR_VIEW(MatrixNumbericDivideView, x / n)
+DEFINE_ELEMENTWISE_NUMBERIC_OPERATOR_VIEW(MatrixNumbericTimesView, x * n)
+
 template <class ElementTy=float>
 class RowView : public VectorView<ElementTy> {
 private:
@@ -314,12 +343,13 @@ private:
 
 public:
     int row;
-    RowView(MatrixBase<ElementTy> matrix, int row): VectorView<ElementTy>(matrix), row(row) { }
+    RowView(const MatrixBase<ElementTy>& matrix, int row): VectorView<ElementTy>(matrix), row(row) { }
 
     ElementTy get(int col) override { return MatrixBase<ElementTy>::get(row, col); }
     ElementTy operator[] (int col) { return get(col); }
     int getColumnCount() override { return MatrixBase<ElementTy>::getColumnCount(); }
     int getRowCount() override { return 1; }
+    //ElementTy* rawData() override { return this->getRawData(row, 0); }
 };
 
 template <class ElementTy=float>
@@ -329,26 +359,29 @@ private:
 
 public:
     int row;
-    MutableRowView(MatrixBase<ElementTy> matrix, int row): MutableVectorView<ElementTy>(matrix), row(row) { }
+    MutableRowView(const MatrixBase<ElementTy>& matrix, int row): MutableVectorView<ElementTy>(matrix), row(row) { }
 
     ElementTy get(int col) override { return MatrixBase<ElementTy>::get(row, col); }
     ElementTy& operator[] (int col) { return *(MatrixBase<ElementTy>::data.get() + (row * MatrixBase<ElementTy>::numCol) + col); };
 
     void set(int index, ElementTy value) override { MutableVectorView<ElementTy>::set_elem(row, index, value); }
+    void set(const MatrixBase<ElementTy>& another);
+    MutableRowView<ElementTy>& operator=(const MatrixBase<ElementTy>& another) { set(another); return *this; }
     int getColumnCount() override { return MatrixBase<ElementTy>::getColumnCount(); }
     int getRowCount() override { return 1; }
-
     MutableRowView<ElementTy>& operator=(MutableRowView<ElementTy>& another);
+    //ElementTy* rawData() override { return this->getRawData(row, 0); }
 };
 
 template <class ElementTy=float>
 class ColumnView : public VectorView<ElementTy> {
 private:
     ElementTy get(int row, int col) override { return get(row); }
+    ElementTy* rawData() override { return nullptr; }
 
 public:
     int col;
-    ColumnView(MatrixBase<ElementTy> matrix, int col): VectorView<ElementTy>(matrix), col(col) { }
+    ColumnView(const MatrixBase<ElementTy>& matrix, int col): VectorView<ElementTy>(matrix), col(col) { }
     ElementTy get(int row) { return MatrixBase<ElementTy>::get(row, col); }
     int getColumnCount() override { return 1; }
     int getRowCount() override { return MatrixBase<ElementTy>::getRowCount(); }
@@ -358,10 +391,11 @@ template <class ElementTy=float>
 class MutableColumnView : public MutableVectorView<ElementTy> {
 private:
     ElementTy get(int row, int col) override { return get(row); }
+    ElementTy* rawData() override { return nullptr; }
 
 public:
     int col;
-    MutableColumnView(MatrixBase<ElementTy> matrix, int col): MutableVectorView<ElementTy>(matrix), col(col) { }
+    MutableColumnView(const MatrixBase<ElementTy>& matrix, int col): MutableVectorView<ElementTy>(matrix), col(col) { }
     void set(int index, ElementTy value) override { MutableVectorView<ElementTy>::set_elem(index, col, value); }
     ElementTy get(int row) { return MatrixBase<ElementTy>::get(row, col); }
     int getColumnCount() override { return 1; }
@@ -373,6 +407,8 @@ typedef ColumnView<> column_view_t;
 typedef MutableColumnView<> mutable_column_view_t;
 typedef RowView<> row_view_t;
 typedef MutableRowView<> mutable_row_view_t;
+
+#define PRINT_MAT(M) std::cout << #M << " = " << (M)
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -421,9 +457,21 @@ MutableRowView<ElementTy> &MutableRowView<ElementTy>::operator=(MutableRowView<E
     return *this;
 }
 
+template<class ElementTy>
+void MutableRowView<ElementTy>::set(const MatrixBase<ElementTy> &another) {
+    MatrixBase<ElementTy>* ano = const_cast<MatrixBase<ElementTy>*>(&another);
+    if (ano->getColumnCount() != this->getColumnCount())
+        throw LogicalException("row count are not the same");
+    if (ano->getRowCount() != 1)
+        throw LogicalException("aother row count is not 1");
+    int n = this->getColumnCount();
+    for (int i=0; i<n; i++)
+        this->set(i, ano->get(0, i));
+}
+
 
 template<class ElementTy>
-MatrixReshapeView<ElementTy>::MatrixReshapeView(MatrixBase<ElementTy> matrix, int new_row, int new_column) : MatrixBase<ElementTy>(matrix) {
+MatrixReshapeView<ElementTy>::MatrixReshapeView(const MatrixBase<ElementTy>& matrix, int new_row, int new_column) : MatrixBase<ElementTy>(matrix) {
     int elem_count = matrix.getElemCount();
     if (new_row < 1 && new_column < 1)
         throw LogicalException("at least one dimension should given");
@@ -438,16 +486,20 @@ MatrixReshapeView<ElementTy>::MatrixReshapeView(MatrixBase<ElementTy> matrix, in
 using matrix_t = Matrix<>;
 
 template<class ElementTy>
-MatrixBase<ElementTy>::MatrixBase(const MatrixBase &another): numCol(another.numCol), numRow(another.numRow), data(another.data) { }
+MatrixBase<ElementTy>::MatrixBase(const MatrixBase &another):
+    numCol(const_cast<MatrixBase<ElementTy>*>(&another)->getColumnCount()),
+    numRow(const_cast<MatrixBase<ElementTy>*>(&another)->getRowCount()) {
+        data = another.data;
+    }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::operator+(Matrix<ElementTy> another) {
+Matrix<ElementTy> MatrixBase<ElementTy>::operator+(const MatrixBase<ElementTy>& another) {
     return boardcastBinaryOperator(another, [] (ElementTy a, ElementTy b) { return a + b; });
 }
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::clone() {
-    int r = getRowCount(), c = getColumnCount();
+    int r = this->getRowCount(), c = this->getColumnCount();
     Matrix<ElementTy> mat(r, c);
     for (int i=0; i<r; i++)
         for (int j = 0; j < c; j++)
@@ -457,36 +509,36 @@ Matrix<ElementTy> MatrixBase<ElementTy>::clone() {
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::transpose() {
-    return MatrixTransposeView<ElementTy>(*this).clone();
+    return MatrixTransposeView<ElementTy>(this->clone()).clone();
 }
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::resize(int r, int c) {
-    return MatrixBoardcastView<ElementTy>(*this, r, c).clone();
+    return MatrixBoardcastView<ElementTy>(this->clone(), r, c).clone();
 }
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::reshape(int r, int c) {
-    return MatrixReshapeView<ElementTy>(*this, r, c).clone();
+    return MatrixReshapeView<ElementTy>(this->clone(), r, c).clone();
 }
 
 template<class ElementTy>
 MatrixBase<ElementTy> MatrixBase<ElementTy>::boardcastTo(int r, int c) {
-    return MatrixReshapeView<ElementTy>(*this, r, c);
+    return MatrixReshapeView<ElementTy>(this->clone(), r, c);
 }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::boardcastBinaryOperator(Matrix<ElementTy> &another,
+Matrix<ElementTy> MatrixBase<ElementTy>::boardcastBinaryOperator(const MatrixBase<ElementTy>& another,
                                                                  const std::function<ElementTy(ElementTy, ElementTy)> &op_handler) {
-    int maxCol = max(this->getColumnCount(), another.getColumnCount());
-    int maxRow = max(this->getRowCount(), another.getRowCount());
+    int maxCol = max(this->getColumnCount(), ((MatrixBase<ElementTy>*)&another)->getColumnCount());
+    int maxRow = max(this->getRowCount(), ((MatrixBase<ElementTy>*)&another)->getRowCount());
     MatrixBoardcastView<ElementTy>* mv1 = new MatrixBoardcastView<ElementTy>(*this, maxRow, maxCol);
     MatrixBoardcastView<ElementTy>* mv2 = new MatrixBoardcastView<ElementTy>(another, maxRow, maxCol);
     Matrix m(maxRow, maxCol);
     for (int i=0; i<maxRow; i++)
         for (int j=0; j<maxCol; j++) {
             ElementTy result = op_handler(mv1->get(i, j), mv2->get(i, j));
-            //cout << (mv1->get(i, j) + mv2->get(i, j)) << "\n";
+            //std::cout << (mv1->get(i, j) + mv2->get(i, j)) << "\n";
             m.set(i, j, result);
         }
     delete mv1, mv2;
@@ -494,17 +546,17 @@ Matrix<ElementTy> MatrixBase<ElementTy>::boardcastBinaryOperator(Matrix<ElementT
 }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::operator-(Matrix<ElementTy> another) {
+Matrix<ElementTy> MatrixBase<ElementTy>::operator-(const MatrixBase<ElementTy>& another) {
     return boardcastBinaryOperator(another, [](ElementTy a, ElementTy b) { return a - b; });
 }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::dot(Matrix<ElementTy> another) {
+Matrix<ElementTy> MatrixBase<ElementTy>::dot(const MatrixBase<ElementTy>& another) {
     return boardcastBinaryOperator(another, [](ElementTy a, ElementTy b) { return a * b; });
 }
 
 template<class ElementTy>
-Matrix<ElementTy> MatrixBase<ElementTy>::operator*(Matrix<ElementTy> another) {
+Matrix<ElementTy> MatrixBase<ElementTy>::operator*(const MatrixBase<ElementTy>& another) {
     int maxMid = max(this->getColumnCount(), another.getRowCount());
 
     MatrixBoardcastView<ElementTy>* mv1 = new MatrixBoardcastView<ElementTy>(*this, this->getRowCount(), maxMid);
@@ -513,7 +565,7 @@ Matrix<ElementTy> MatrixBase<ElementTy>::operator*(Matrix<ElementTy> another) {
     size_t new_row = this->getRowCount();
     size_t new_col = another.getColumnCount();
     Matrix m(new_row, new_col);
-    //printf("max_mid=%d, new_row=%d, new_col=%d\n", maxMid, new_row, new_col);
+    printf("max_mid=%d, new_row=%d, new_col=%d\n", maxMid, new_row, new_col);
 
     for (int i=0; i<new_row; i++) {
         for (int j=0; j<new_col; j++) {
@@ -545,27 +597,27 @@ RowView<ElementTy> MatrixBase<ElementTy>::operator[](int row) {
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::upperTriangle() {
-    return UpperTriangularMatrixView<ElementTy>(*this).clone();
+    return UpperTriangularMatrixView<ElementTy>(this->clone()).clone();
 }
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::lowerTriangle() {
-    return LowerTriangularMatrixView<ElementTy>(*this).clone();
+    return LowerTriangularMatrixView<ElementTy>(this->clone()).clone();
 }
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::diagonal() {
-    return DiagonalMatrixView<ElementTy>(*this).clone();
+    return DiagonalMatrixView<ElementTy>(this->clone()).clone();
 }
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::operator-() {
-    return NegativeMatrixView<ElementTy>(*this).clone();
+    return NegativeMatrixView<ElementTy>(this->clone()).clone();
 }
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::shapeLike(ElementTy k) {
-    return KsLikeMatrixView<ElementTy>(*this, k).clone();
+    return KsLikeMatrixView<ElementTy>(this->clone(), k).clone();
 }
 
 template<class ElementTy>
@@ -589,7 +641,7 @@ void MatrixBase<ElementTy>::print(std::ostream &os, MatrixBase::Formatter *forma
 
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::abs() {
-    return AbsoluteMatrixView<ElementTy>(*this).clone();
+    return AbsoluteMatrixView<ElementTy>(this->clone()).clone();
 }
 
 template<class ElementTy>
@@ -621,7 +673,7 @@ Matrix<ElementTy> MatrixBase<ElementTy>::max(int dim) {
     if (dim == 0) {
         n = this->getRowCount();
         Matrix<ElementTy> mat(1, n);
-        printf("n=%d\n", n);
+        //printf("n=%d\n", n);
         for (int i=0; i<n; i++) {
             this->getRow(i).print();
             ElementTy max_val = this->getRow(i).max();
@@ -684,9 +736,48 @@ ElementTy MatrixBase<ElementTy>::l2Norm() {
 }
 
 template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::inverseGaussJordan() {
+    REQUIRE_SQUARE_MATRIX_(*this);
+    int n = this->getColumnCount();
+    Matrix<ElementTy> A = this->clone();
+    Matrix<ElementTy> E = Matrix<ElementTy>::identity(n);
+    //PRINT_MAT(A);
+    //PRINT_MAT(E);
+    std::cout << "\n";
+    // (A|E) = (E|A^-1)
+    for (int i=0; i<n; i++) {
+        ElementTy A_ii = A[i][i];
+        A[i] = A[i] / A_ii; E[i] = E[i] / A_ii;
+        for (int j=i+1; j<n; j++) {
+            ElementTy A_ji = A[j][i];
+            A[j] = A[j].clone() - A[i] * A_ji; E[j] = E[j].clone() - E[i] * A_ji;
+        }
+    }
+    for (int i=n-1; i>=0; i--) {
+        for (int j=i-1; j>=0; j--) {
+            ElementTy A_ji = A[j][i];
+            A[j] = A[j].clone() - A[i] * A_ji; E[j] = E[j].clone() - E[i] * A_ji;
+        }
+    }
+    //PRINT_MAT(A);
+    //PRINT_MAT(E);
+    return E;
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::operator/(ElementTy n) {
+    return MatrixNumbericDivideView<ElementTy>(this->clone(), n).clone();
+}
+
+template<class ElementTy>
+Matrix<ElementTy> MatrixBase<ElementTy>::operator*(ElementTy n) {
+    return MatrixNumbericTimesView<ElementTy>(this->clone(), n).clone();
+}
+
+template<class ElementTy>
 Matrix<ElementTy>::Matrix(ElementTy number) {
     ElementTy* _data = new ElementTy[1];
-    MatrixBase<ElementTy>::data = _data;
+    MatrixBase<ElementTy>::data.reset(_data);
     *_data = number;
     MatrixBase<ElementTy>::numCol = 1;
     MatrixBase<ElementTy>::numRow = 1;
@@ -803,8 +894,8 @@ Matrix<ElementTy>::randn(int r, int c) {
 }
 
 template<class ElementTy>
-MatrixBoardcastView<ElementTy>::MatrixBoardcastView(MatrixBase<ElementTy> matrix, int newRow, int newCol)
-        : MatrixBase<ElementTy>(matrix), scaleRow(newRow * 1.0 / matrix.getRowCount()), scaleCol(newCol * 1.0 / matrix.getColumnCount()),
+MatrixBoardcastView<ElementTy>::MatrixBoardcastView(const MatrixBase<ElementTy>& matrix, int newRow, int newCol)
+        : MatrixBase<ElementTy>(matrix), scaleRow(newRow * 1.0 / ((MatrixBase<ElementTy>*)&matrix)->getRowCount()), scaleCol(newCol * 1.0 / ((MatrixBase<ElementTy>*)&matrix)->getColumnCount()),
           newCol(newCol), newRow(newRow) { }
 
 template<class ElementTy>
@@ -814,7 +905,7 @@ ElementTy MatrixBoardcastView<ElementTy>::get(int row, int col) {
 }
 
 template<class ElementTy>
-MatrixTransposeView<ElementTy>::MatrixTransposeView(MatrixBase<ElementTy> matrix): MatrixBase<ElementTy>(matrix) { }
+MatrixTransposeView<ElementTy>::MatrixTransposeView(const MatrixBase<ElementTy>& matrix): MatrixBase<ElementTy>(matrix) { }
 
 template<class ElementTy>
 ElementTy MatrixTransposeView<ElementTy>::get(int row, int col) {
