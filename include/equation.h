@@ -11,7 +11,7 @@
 /// \param b           [IN]  b
 /// \param tol         [IN]  order of convergence
 /// \param out_result  [OUT] result x
-/// \return a value indicates if iteration is successful, return ITER_OK if successful
+/// \return a value indicates if iteration is successful, return NA_OK if successful
 MATRIX_API
 na_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
 
@@ -20,7 +20,7 @@ na_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& ou
 /// \param b           [IN]  b
 /// \param tol         [IN]  order of convergence
 /// \param out_result  [OUT] result x
-/// \return a value indicates if iteration is successful, return ITER_OK if successful
+/// \return a value indicates if iteration is successful, return NA_OK if successful
 MATRIX_API
 na_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
 
@@ -30,9 +30,17 @@ na_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T
 /// \param w           [IN]  omega (0 < omega < 2)
 /// \param tol         [IN]  order of convergence
 /// \param out_result  [OUT] result x
-/// \return a value indicates if iteration is successful, return ITER_OK if successful
+/// \return a value indicates if iteration is successful, return NA_OK if successful
 MATRIX_API
 na_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result);
+
+/// Perform Gaussian reduce on linear equation Ax=b
+/// \param A           [IN]  coefficient matrix A
+/// \param b           [IN]  b
+/// \param out_result  [OUT] result x
+/// \return a value indicates if reduction is successful, return NA_OK if successful
+MATRIX_API
+na_result_t gaussianReduce(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result);
 
 // ==================  NON-LINEAR EQUATIONS  ===================
 
@@ -42,7 +50,7 @@ na_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MAT
 /// \param x1          [IN]  initial value x_1
 /// \param epsilon     [IN]  order of convergence
 /// \param out_result  [OUT] result x
-/// \return a value indicates if iteration is successful, return ITER_OK if successful
+/// \return a value indicates if iteration is successful, return NA_OK if successful
 EQU_API
 na_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result);
 
