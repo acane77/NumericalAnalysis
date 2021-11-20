@@ -144,6 +144,8 @@ public:
     Matrix<ElementTy> operator / (ElementTy n);
     // times a number
     Matrix<ElementTy> operator * (ElementTy n);
+    // get shape of the matrix
+    Matrix<ElementTy> shape() { return Matrix<ElementTy>({ (ElementTy)this->getRowCount(), (ElementTy)this->getColumnCount() }); }
 
     virtual ~MatrixBase() = default;
 
