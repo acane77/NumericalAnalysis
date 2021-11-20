@@ -6,7 +6,7 @@ using namespace std;
 int main() {
     try {
         matrix_t mat = matrix_t::randn(3,4);
-        mat.print("\t");
+        mat.print();
         return 0;
     }
     catch (std::exception& err) {

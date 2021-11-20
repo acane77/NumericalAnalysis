@@ -10,6 +10,7 @@
 #include <functional>
 #include <algorithm>
 #include <random>
+#include <iomanip>
 
 #define PERIOR_DEFINE_CLASS(class_name) template <class T> class class_name
 
@@ -21,6 +22,23 @@ PERIOR_DEFINE_CLASS(MutableColumnView);
 
 template <class ElementTy=float>
 class MatrixBase {
+public:
+    class Formatter {
+    public:
+        virtual int printElement(std::ostream& os, ElementTy& el, int row, int col, int rowNum, int colNum) = 0;
+        virtual int printLineStart(std::ostream& os, int row, int rowNum, int colNum) = 0;
+        virtual int printLineEnd(std::ostream& os, int row, int rowNum, int colNum) = 0;
+        virtual int printMatrixStart(std::ostream& os) = 0;
+        virtual int printEnd(std::ostream& os) = 0;
+    };
+    class DefaultFormatter : public Formatter {
+        int printElement(std::ostream &os, ElementTy &el, int row, int col, int rowNum, int colNum) override;
+        int printLineStart(std::ostream &os, int row, int rowNum, int colNum) override;
+        int printLineEnd(std::ostream &os, int row, int rowNum, int colNum) override;
+        int printMatrixStart(std::ostream &os) override;
+        int printEnd(std::ostream &os) override;
+    };
+    DefaultFormatter defaultFormatter;
 protected:
     // Represents the real columns and rows of matrix i memory,
     // Note: even in matrix views, this numCol and numRow is also represent
@@ -44,7 +62,7 @@ public:
     // Get element at given row and column
     virtual ElementTy get(int row, int col) { return *(data.get() + (row * numCol) + col); }
     // Print the matrix
-    void print(const char* dstr = nullptr);
+    void print(std::ostream &os = std::cout, MatrixBase::Formatter *formatter = nullptr);
     // Perform broadcast add
     Matrix<ElementTy> operator+ (Matrix<ElementTy>& another) ;
     // Perform broadcast substract
@@ -334,6 +352,40 @@ typedef MutableRowView<> mutable_row_view_t;
 
 ///////////////////////////////////////////////////////////////////////////
 
+
+template<class ElementTy>
+int MatrixBase<ElementTy>::DefaultFormatter::printElement(std::ostream &os, ElementTy &el, int row, int col, int rowNum,
+                                                          int colNum) {
+    os << std::left << std::setprecision(5) << std::setw(10) << el;
+    return 1;
+}
+
+template<class ElementTy>
+int MatrixBase<ElementTy>::DefaultFormatter::printLineStart(std::ostream &os, int row, int rowNum, int colNum) {
+    if (row > 0) os << " ";
+    os << "[";
+    return 1;
+}
+
+template<class ElementTy>
+int MatrixBase<ElementTy>::DefaultFormatter::printLineEnd(std::ostream &os, int row, int rowNum, int colNum) {
+    os << "]";
+    if (row != rowNum - 1) os << "\n";
+    return 1;
+}
+
+template<class ElementTy>
+int MatrixBase<ElementTy>::DefaultFormatter::printMatrixStart(std::ostream &os) {
+    os << "[";
+    return 1;
+}
+
+template<class ElementTy>
+int MatrixBase<ElementTy>::DefaultFormatter::printEnd(std::ostream &os) {
+    os << "]\n";
+    return 0;
+}
+
 template<class ElementTy>
 MutableRowView<ElementTy> &MutableRowView<ElementTy>::operator=(MutableRowView<ElementTy> &another) {
     if (this->getColumnCount() != another.getColumnCount())
@@ -367,17 +419,6 @@ MatrixBase<ElementTy>::MatrixBase(const MatrixBase &another): numCol(another.num
 template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::operator+(Matrix<ElementTy> &another) {
     return boardcastBinaryOperator(another, [] (int a, int b) { return a + b; });
-}
-
-template<class ElementTy>
-void MatrixBase<ElementTy>::print(const char *dstr) {
-    int r = getRowCount(), c = getColumnCount();
-    for (int i=0; i<r; i++) {
-        for (int j = 0; j < c; j++)
-            std::cout << get(i, j) << (dstr ? dstr : ", ");
-        std::cout << "\n";
-    }
-    std::cout << "\n";
 }
 
 template<class ElementTy>
@@ -504,6 +545,23 @@ Matrix<ElementTy> MatrixBase<ElementTy>::shapeLike(ElementTy k) {
 }
 
 template<class ElementTy>
+void MatrixBase<ElementTy>::print(std::ostream &os, MatrixBase::Formatter *formatter) {
+    if (formatter == nullptr)
+        formatter = &defaultFormatter;
+    int r = getRowCount(), c = getColumnCount();
+    formatter->printMatrixStart(os);
+    for (int i=0; i<r; i++) {
+        formatter->printLineStart(os, i, r, c);
+        for (int j = 0; j < c; j++) {
+            ElementTy val = std::move(get(i, j));
+            formatter->printElement(os, val, i, j, r, c);
+        }
+        formatter->printLineEnd(os, i, r, c);
+    }
+    formatter->printEnd(os);
+}
+
+template<class ElementTy>
 Matrix<ElementTy>::Matrix(ElementTy number) {
     ElementTy* _data = new ElementTy[1];
     MatrixBase<ElementTy>::data = _data;
@@ -574,7 +632,10 @@ void Matrix<ElementTy>::swapElem(int col1, int row1, int col2, int row2) {
 template<class ElementTy>
 typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
 Matrix<ElementTy>::zeros(int r, int c) {
-    return std::move(Matrix<ElementTy>());
+    Matrix<ElementTy> mat(r, c);
+    for (int i=0; i<r*c; i++)
+        mat.data.get()[i] = 0;
+    return mat;
 }
 
 template<class ElementTy>
