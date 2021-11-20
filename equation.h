@@ -37,6 +37,16 @@ iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& 
 MATRIX_API
 iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
 
+/// Perform SOR iteration on linear equation Ax=b
+/// \param A           [IN]  coefficient matrix A
+/// \param b           [IN]  b
+/// \param w           [IN]  omega (0 < omega < 2)
+/// \param tol         [IN]  order of convergence
+/// \param out_result  [OUT] result x
+/// \return a value indicates if iteration is successful, return ITER_OK if successful
+MATRIX_API
+iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result);
+
 // ==========================================================
 
 #define PERFORM_SQUARE_MATRIX_CHECK(mat) do { \
@@ -108,6 +118,35 @@ iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX
         // x_1 = -(D+L)^-1Ux_0+(D+L)^-1b
         // x_1 = B_G * x_0 + f
         MATRIX_T x1 = B_G * x + f;
+        drt_x_l2norm = (x - x1).l2Norm();
+        x = x1;
+    } while (drt_x_l2norm >= tol && iter_count < MAX_ITERATION_COUNT);
+    if (iter_count >= MAX_ITERATION_COUNT)
+        return ITER_UNCOVERAGED;
+    out_result = x;
+    return ITER_OK;
+}
+
+MATRIX_API
+iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result) {
+    ITER_CHECKARGS();
+    if (w <= 0 || w >= 2)
+        return ITER_INVADE_ARG;
+    MATRIX_T x0 = b.zerosLike();
+    MATRIX_T x = x0;
+    // A = D+l+U
+    MATRIX_T L = -(A.lowerTriangle()), U = -(A.upperTriangle()), D = A.diagonal();
+    MATRIX_T DmwL_inv = (D - L * w).inverse();  // (D-L)^-1
+    // f = w(D-wL)^-1b
+    MATRIX_T f = DmwL_inv * w * b;
+    // B_w = (D-wL)^-1((1-w)D+wU)
+    MATRIX_T B_w = DmwL_inv * (D * (1-w) + U * w);
+    ElementTy drt_x_l2norm;
+    int iter_count = 0;
+    do {
+        iter_count++;
+        // x_1 = B_w * x_0 + f
+        MATRIX_T x1 = B_w * x + f;
         drt_x_l2norm = (x - x1).l2Norm();
         x = x1;
     } while (drt_x_l2norm >= tol && iter_count < MAX_ITERATION_COUNT);

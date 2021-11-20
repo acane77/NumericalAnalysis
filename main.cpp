@@ -11,7 +11,7 @@ int main() {
         matrix_t b = { 20,33,12 };
         matrix_t x0 = b.zerosLike();
         matrix_t x;
-        gaussSeidelIteration(A, b, 1e-6f, x);
+        SORIteration(A, b, 1.0f, 1e-6f, x);
         PRINT_MAT(x);
         return 0;
     }
