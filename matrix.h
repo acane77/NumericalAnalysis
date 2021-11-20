@@ -31,6 +31,7 @@ public:
         virtual int printMatrixStart(std::ostream& os) = 0;
         virtual int printEnd(std::ostream& os) = 0;
     };
+protected:
     class DefaultFormatter : public Formatter {
         int printElement(std::ostream &os, ElementTy &el, int row, int col, int rowNum, int colNum) override;
         int printLineStart(std::ostream &os, int row, int rowNum, int colNum) override;

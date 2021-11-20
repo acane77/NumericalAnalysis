@@ -9,6 +9,14 @@
 #define MATRIX_T   Matrix<ElementTy>
 #define MATRIX_FROM_VIEW(view_name, mat) view_name<ElementTy>(mat).clone()
 #define ELEMENT_T  ElementTy
+#define EQU_API template <class ValTy>
+
+EQU_API
+using SingleMetaFunction = ValTy(*)(ValTy v);
+#define SINGLE_META_FUNCTION_T SingleMetaFunction<ValTy>
+#define VALUE_T ValTy
+
+using single_meta_function_t = SingleMetaFunction<float>;
 
 enum iter_result_t {
     ITER_OK = 0,                      // iteration success
@@ -16,6 +24,8 @@ enum iter_result_t {
     ITER_REQUIRE_SQUARE_MATRIX = 2,   // require a square matrix for input
     ITER_INVADE_ARG = 3,              // invalid argument
 };
+
+// =====================  LINEAR EQUATIONS  =====================
 
 /// Perform Jacobi iteration on linear equation Ax=b
 /// \param A           [IN]  coefficient matrix A
@@ -45,7 +55,21 @@ iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX
 MATRIX_API
 iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MATRIX_T& out_result);
 
-// ==========================================================
+// ==================  NON-LINEAR EQUATIONS  ===================
+
+/// Perform simple Newton iteration on non-linear equation f(x)=0
+/// \param f           [IN]  single-meta function f(x)
+/// \param x0          [IN]  initial value x_0
+/// \param x1          [IN]  initial value x_1
+/// \param epsilon     [IN]  order of convergence
+/// \param out_result  [OUT] result x
+/// \return a value indicates if iteration is successful, return ITER_OK if successful
+EQU_API
+iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result);
+
+// ==============================================================
+//                       IMPLEMENTATIONS
+// ==============================================================
 
 #define PERFORM_SQUARE_MATRIX_CHECK(mat) do { \
     if ((mat).getColumnCount() != (mat).getRowCount())\
@@ -148,6 +172,23 @@ iter_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, M
         drt_x_l2norm = (x - x1).l2Norm();
         x = x1;
     } while (drt_x_l2norm >= tol && iter_count < MAX_ITERATION_COUNT);
+    if (iter_count >= MAX_ITERATION_COUNT)
+        return ITER_UNCOVERAGED;
+    out_result = x;
+    return ITER_OK;
+}
+
+EQU_API 
+iter_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result) {
+    VALUE_T drt;
+    int iter_count = 0;
+    VALUE_T x;
+    do {
+        x = x1 - f(x1) / (f(x1) - f(x0)) * (x1 - x0);
+        drt = x - x1;
+        x0 = x1;
+        x1 = x;
+    } while (drt >= epsilon && iter_count < MAX_ITERATION_COUNT);
     if (iter_count >= MAX_ITERATION_COUNT)
         return ITER_UNCOVERAGED;
     out_result = x;
