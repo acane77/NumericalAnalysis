@@ -743,7 +743,6 @@ Matrix<ElementTy> MatrixBase<ElementTy>::inverseGaussJordan() {
     Matrix<ElementTy> E = Matrix<ElementTy>::identity(n);
     //PRINT_MAT(A);
     //PRINT_MAT(E);
-    std::cout << "\n";
     // (A|E) = (E|A^-1)
     for (int i=0; i<n; i++) {
         ElementTy A_ii = A[i][i];

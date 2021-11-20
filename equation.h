@@ -28,6 +28,15 @@ enum iter_result_t {
 MATRIX_API
 iter_result_t jacobiInteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
 
+/// Perform Gauss-Seidel iteration on linear equation Ax=b
+/// \param A           [IN]  coefficient matrix A
+/// \param b           [IN]  b
+/// \param tol         [IN]  order of convergence
+/// \param out_result  [OUT] result x
+/// \return a value indicates if iteration is successful, return ITER_OK if successful
+MATRIX_API
+iter_result_t gaussSeidelIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T tol, MATRIX_T& out_result);
+
 // ==========================================================
 
 #define PERFORM_SQUARE_MATRIX_CHECK(mat) do { \
