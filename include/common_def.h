@@ -26,6 +26,7 @@ enum na_result_t {
     NA_ITER_UNCOVERAGED = 1,          // equation is uncoveraged
     NA_REQUIRE_SQUARE_MATRIX = 2,     // require a square matrix for input
     NA_INVADE_ARG = 3,                // invalid argument
+    NA_REDUCE_FAILED = 4,             // reduce failed, equation not solvable
 };
 
 

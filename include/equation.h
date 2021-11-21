@@ -42,6 +42,14 @@ na_result_t SORIteration(MATRIX_T A, MATRIX_T b, ELEMENT_T w, ELEMENT_T tol, MAT
 MATRIX_API
 na_result_t gaussianReduce(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result);
 
+/// Perform Gaussian reduce with maximal column pivot on linear equation Ax=b
+/// \param A           [IN]  coefficient matrix A
+/// \param b           [IN]  b
+/// \param out_result  [OUT] result x
+/// \return a value indicates if reduction is successful, return NA_OK if successful
+MATRIX_API
+na_result_t gaussianReduceWithMaximalColumnPivot(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result);
+
 // ==================  NON-LINEAR EQUATIONS  ===================
 
 /// Perform simple Newton iteration on non-linear equation f(x)=0
@@ -176,6 +184,8 @@ na_result_t gaussianReduce(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result) {
 
     for (int i = 0; i < n; i++) {
         ELEMENT_T A_ii = A[i][i];
+        if (A_ii == 0) 
+            return NA_REDUCE_FAILED;
         A[i] = A[i] / A_ii; x[i][0] = x[i][0] / A_ii;
         for (int j = i + 1; j < n; j++) {
             ELEMENT_T A_ji = A[j][i];
@@ -194,7 +204,40 @@ na_result_t gaussianReduce(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result) {
 
 MATRIX_API
 na_result_t gaussianReduceWithMaximalColumnPivot(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result) {
-    
+    MATRIX_T b = _b;
+    MATRIX_T A = _A.clone();
+    ITER_CHECKARGS();
+    // (A|b) = (E|x)
+    int n = _A.getColumnCount();
+    MATRIX_T x = b.clone();
+
+    for (int i = 0; i < n; i++) {
+        int k = A.getColumn(i).slice(i, i, -1, -1).argmax();
+        A.swapRow(i, k);
+        x.swapRow(i, k);
+        PRINT_MAT(A);
+        PRINT_MAT(x);
+        ELEMENT_T A_ii = A[i][i];
+        if (A_ii == 0)
+            return NA_REDUCE_FAILED;
+        A[i] = A[i] / A_ii; x[i][0] = x[i][0] / A_ii;
+        for (int j = i + 1; j < n; j++) {
+            ELEMENT_T A_ji = A[j][i];
+            PRINT_MAT(A);
+            PRINT_MAT(x);
+            A[j] = A[j].clone() - A[i] * A_ji; x[j][0] = x[j][0] - x[i][0] * A_ji;
+        }
+        
+    }
+    for (int i = n - 1; i >= 0; i--) {
+        for (int j = i - 1; j >= 0; j--) {
+            ELEMENT_T A_ji = A[j][i];
+            A[j] = A[j].clone() - A[i] * A_ji; x[j][0] = x[j][0] - x[i][0] * A_ji;
+        }
+    }
+    out_result = x;
+    PRINT_MAT(A);
+    return NA_OK;
 }
 
 EQU_API 

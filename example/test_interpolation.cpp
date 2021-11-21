@@ -1,5 +1,7 @@
 #include <iostream>
+#include "test.h"
+#include "equation.h"
 
-int main() {
+using namespace std;
 
-}
+TEST_MAIN()

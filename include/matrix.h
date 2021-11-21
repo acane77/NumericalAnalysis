@@ -12,13 +12,14 @@
 #include <random>
 #include <iomanip>
 
-#define PERIOR_DEFINE_CLASS(class_name) template <class T> class class_name
+#define PRIOR_DEFINE_CLASS(class_name) template <class T> class class_name
 
-PERIOR_DEFINE_CLASS(Matrix);
-PERIOR_DEFINE_CLASS(ColumnView);
-PERIOR_DEFINE_CLASS(RowView);
-PERIOR_DEFINE_CLASS(MutableRowView);
-PERIOR_DEFINE_CLASS(MutableColumnView);
+PRIOR_DEFINE_CLASS(Matrix);
+PRIOR_DEFINE_CLASS(ColumnView);
+PRIOR_DEFINE_CLASS(RowView);
+PRIOR_DEFINE_CLASS(MutableRowView);
+PRIOR_DEFINE_CLASS(MutableColumnView);
+PRIOR_DEFINE_CLASS(SliceMatrixView);
 
 template <class ElementTy=float>
 class MatrixBase {
@@ -135,7 +136,7 @@ public:
     ElementTy sum();
     // get max element
     ElementTy max();
-    // get argmax element
+    // get argmax
     ElementTy argmax();
     // get max of given dimension
     Matrix<ElementTy> max(int dim);
@@ -151,6 +152,10 @@ public:
     Matrix<ElementTy> operator * (ElementTy n);
     // get shape of the matrix
     Matrix<ElementTy> shape() { return Matrix<ElementTy>({ (ElementTy)this->getRowCount(), (ElementTy)this->getColumnCount() }); }
+    // slice matrix
+    SliceMatrixView<ElementTy> slice(int r1, int c1, int r2, int c2);
+    // slice vector
+    SliceMatrixView<ElementTy> slice1d(int s, int e);
 
     virtual ~MatrixBase() = default;
 
@@ -180,7 +185,7 @@ public:
     // swap two columns
     void swapCol(int col1, int col2);
     // swap two elements
-    void swapElem(int col1, int row1, int col2, int row2);
+    void swapElem(int row1, int col1, int row2, int col2);
     // get all-zero matrix
     static typename std::enable_if<std::is_convertible_v<ElementTy, int>, Matrix<ElementTy>>::type
     zeros(int r, int c);
@@ -285,14 +290,26 @@ public:
     ElementTy get(int row, int col) override { return col >= row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
 };
 
-template <class ElementTy=float>
+template <class ElementTy = float>
 class DiagonalMatrixView : public MatrixBase<ElementTy> {
 public:
-    DiagonalMatrixView(const MatrixBase<ElementTy>& matrix): MatrixBase<ElementTy>(matrix) {
+    DiagonalMatrixView(const MatrixBase<ElementTy>& matrix) : MatrixBase<ElementTy>(matrix) {
         REQUIRE_SQUARE_MATRIX();
     }
 
     ElementTy get(int row, int col) override { return col != row ? 0 : MatrixBase<ElementTy>::_get_elem(row, col); }
+};
+
+template <class ElementTy = float>
+class SliceMatrixView : public MatrixBase<ElementTy> {
+public:
+    int r1, c1, r2, c2;
+    SliceMatrixView(const MatrixBase<ElementTy>& matrix, int r1, int c1, int r2, int c2) : MatrixBase<ElementTy>(matrix),
+        r1(r1), c1(c1), r2(r2), c2(c2) { }
+
+    ElementTy get(int row, int col) override { return MatrixBase<ElementTy>::_get_elem(r1 + row, c1 + col); }
+    int getColumnCount() override { return c2 - c1 + 1; }
+    int getRowCount() override { return r2 - r1 + 1; }
 };
 
 template <class ElementTy=float>
@@ -415,7 +432,7 @@ typedef MutableColumnView<> mutable_column_view_t;
 typedef RowView<> row_view_t;
 typedef MutableRowView<> mutable_row_view_t;
 
-#define PRINT_MAT(M) std::cout << #M << " = \n" << (M)
+#define PRINT_MAT(M) std::cout << #M << " = \n" << (M) << std::endl
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -674,6 +691,24 @@ ElementTy MatrixBase<ElementTy>::max() {
 }
 
 template<class ElementTy>
+inline ElementTy MatrixBase<ElementTy>::argmax()
+{
+    int r = this->getRowCount(), c = this->getColumnCount();
+    ElementTy _max = this->get(0, 0);
+    ElementTy _argmax = 0;
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++) {
+            ElementTy el = this->get(i, j);
+            if (el > _max) {
+                _max = el;
+                _argmax = i * c + j;
+            }
+        }
+    }
+    return _argmax;
+}
+
+template<class ElementTy>
 Matrix<ElementTy> MatrixBase<ElementTy>::max(int dim) {
     int n;
     // calc max on rows, returs rows
@@ -694,6 +729,33 @@ Matrix<ElementTy> MatrixBase<ElementTy>::max(int dim) {
         Matrix<ElementTy> mat(1, n);
         for (int i=0; i<n; i++) {
             ElementTy max_val = this->getColumn(i).max();
+            mat[0][i] = max_val;
+        }
+        return mat;
+    }
+    throw LogicalException("no such dimension");
+}
+
+template<class ElementTy>
+inline Matrix<ElementTy> MatrixBase<ElementTy>::argmax(int dim) {
+    int n;
+    // calc max on rows, returs rows
+    if (dim == 0) {
+        n = this->getRowCount();
+        Matrix<ElementTy> mat(1, n);
+        //printf("n=%d\n", n);
+        for (int i = 0; i < n; i++) {
+            ElementTy max_val = this->getRow(i).argmax();
+            mat[0][i] = max_val;
+        }
+        return mat;
+    }
+    // calc max on cols, returns cols
+    else if (dim == 1) {
+        n = this->getColumnCount();
+        Matrix<ElementTy> mat(1, n);
+        for (int i = 0; i < n; i++) {
+            ElementTy max_val = this->getColumn(i).argmax();
             mat[0][i] = max_val;
         }
         return mat;
@@ -781,6 +843,25 @@ Matrix<ElementTy> MatrixBase<ElementTy>::operator*(ElementTy n) {
 }
 
 template<class ElementTy>
+inline SliceMatrixView<ElementTy> MatrixBase<ElementTy>::slice(int r1, int c1, int r2, int c2) {
+    if (r1 == -1) r1 = 0;
+    if (c1 == -1) c1 = 0;
+    if (r2 == -1) r2 = this->getRowCount();
+    if (c2 == -1) c2 = this->getColumnCount();
+    return SliceMatrixView<ElementTy>(this->clone(), r1, c1, r2, c2);
+}
+
+template<class ElementTy>
+inline SliceMatrixView<ElementTy> MatrixBase<ElementTy>::slice1d(int s, int e)
+{
+    if (this->getColumnCount() > 1 && this->getRowCount() > 1)
+        throw LogicalException("use slice() instead");
+    if (this->getRowCount() == 1)
+        return slice(0, s, 0, e);
+    else return slice(s, 0, e, 0);
+}
+
+template<class ElementTy>
 Matrix<ElementTy>::Matrix(ElementTy number) {
     ElementTy* _data = new ElementTy[1];
     MatrixBase<ElementTy>::data.reset(_data);
@@ -841,11 +922,11 @@ void Matrix<ElementTy>::swapCol(int col1, int col2) {
 }
 
 template<class ElementTy>
-void Matrix<ElementTy>::swapElem(int col1, int row1, int col2, int row2) {
+void Matrix<ElementTy>::swapElem(int row1, int col1, int row2, int col2) {
     ElementTy el1 = this->get(row1, col1);
     ElementTy el2 = this->get(row2, col2);
     this->set(row1, col1, el2);
-    this->set(col2, row2, el1);
+    this->set(row2, col2, el1);
 }
 
 template<class ElementTy>
