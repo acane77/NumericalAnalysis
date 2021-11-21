@@ -12,14 +12,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/gtest/googletest/inc
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/gtest)
 
-add_executable(test_equation ${CMAKE_CURRENT_SOURCE_DIR}/example/test_equation.cpp)
+add_executable(test_equation ${CMAKE_CURRENT_SOURCE_DIR}/test/test_equation.cpp)
 target_link_libraries(test_equation gtest_main)
 
-add_executable(test_calculus ${CMAKE_CURRENT_SOURCE_DIR}/example/test_calculus.cpp)
+add_executable(test_calculus ${CMAKE_CURRENT_SOURCE_DIR}/test/test_calculus.cpp)
 target_link_libraries(test_calculus gtest_main)
 
-add_executable(test_interpolation ${CMAKE_CURRENT_SOURCE_DIR}/example/test_interpolation.cpp)
+add_executable(test_interpolation ${CMAKE_CURRENT_SOURCE_DIR}/test/test_interpolation.cpp)
 target_link_libraries(test_interpolation gtest_main)
 
-add_executable(test_matrix ${CMAKE_CURRENT_SOURCE_DIR}/example/test_matrix.cpp)
+add_executable(test_matrix ${CMAKE_CURRENT_SOURCE_DIR}/test/test_matrix.cpp)
 target_link_libraries(test_matrix gtest_main)
