@@ -135,8 +135,12 @@ public:
     ElementTy sum();
     // get max element
     ElementTy max();
+    // get argmax element
+    ElementTy argmax();
     // get max of given dimension
     Matrix<ElementTy> max(int dim);
+    // get argmax of given dimension
+    Matrix<ElementTy> argmax(int dim);
     // get inverse matrix
     Matrix<ElementTy> inverse() { return std::move(inverseGaussJordan()); }
     // get inverse matrix via Gauss-Jordan method

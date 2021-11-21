@@ -1,11 +1,12 @@
 #include <iostream>
+#include "test.h"
 #include "equation.h"
 
 using namespace std;
 
 float f(float x) { return 666 -  6 * x ; }
 
-int main() {
+TEST(equation, linear_eqn) {
     try {
         cout << "Solve equation: Ax=b, with:\n";
         matrix_t A = { {8,-3,2},{4,11,-1},{2,1,4} };
@@ -31,15 +32,16 @@ int main() {
         cout << "Using Gaussian Iteration: " << endl;
         gaussianReduce(A, b, x);
         PRINT_MAT(x);
-        
+
         cout << "Solve non-linear equation y=f(x): \n";
         float _x;
         cout << "Using Newton Iteration: " << endl;
         int ret = newtonIteration(f, -1.0f, 1.0f, 1e-6f, _x);
         PRINT_MAT(_x);
-        return 0;
     }
     catch (std::exception& err) {
         cout << err.what() << endl;
     }
 }
+
+TEST_MAIN()

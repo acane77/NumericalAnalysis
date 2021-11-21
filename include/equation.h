@@ -192,6 +192,11 @@ na_result_t gaussianReduce(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result) {
     return NA_OK;
 }
 
+MATRIX_API
+na_result_t gaussianReduceWithMaximalColumnPivot(MATRIX_T _A, MATRIX_T _b, MATRIX_T& out_result) {
+    
+}
+
 EQU_API 
 na_result_t newtonIteration(SINGLE_META_FUNCTION_T f, VALUE_T x0, VALUE_T x1, VALUE_T epsilon, VALUE_T& out_result) {
     VALUE_T drt;
